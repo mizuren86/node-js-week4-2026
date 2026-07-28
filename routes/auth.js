@@ -32,6 +32,22 @@ const router = express.Router();
 /* 作答區
 router.METHOD('PATH', async (req, res) => { ... });
 */
+router.post('/register', async (req, res) => { 
+    const email = req.body.email
+    const password = req.body.password
+    if (!email || !password ) {
+        return res.status(400).json({ status: 'false', message: '缺少必要欄位' })
+    }
+
+    if ( users.some(user => user.email === email)  ) {
+  return res.status(400).json({ status: 'false', message: 'email已存在' })
+}
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    users.push({ id: nextId++, email, password: hashedPassword })
+    return res.status(201).json({ status: 'success', message: '註冊成功' })
+});
 
 // ───────────────────────────────────────────────────────────
 // TODO 任務三：POST /login
@@ -49,6 +65,21 @@ router.METHOD('PATH', async (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', async (req, res) => { ... });
 */
+router.post('/login', async (req, res) => { 
+    const email = req.body.email
+    const password = req.body.password
+    const user = users.find(user => user.email === email)
+    if (!user) {
+        return res.status(401).json({ status: 'false', message: '帳號或密碼錯誤' })
+    }
+
+    if (!await bcrypt.compare(password, user.password)) {
+        return res.status(401).json({ status: 'false', message: '帳號或密碼錯誤' })
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '30d' }  )
+    return res.status(200).json({ status: 'success', token })
+ });
 
 // ───────────────────────────────────────────────────────────
 // TODO 任務四：GET /me（受保護）
@@ -60,5 +91,10 @@ router.METHOD('PATH', async (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', middleware, (req, res) => { ... });
 */
+
+router.get('/me', verifyToken, (req, res) => { 
+
+    return res.status(200).json({ status: 'success', user: req.user })
+ });
 
 module.exports = router;
